@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DayFlow — Your Daily Planner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+  <script>
+    (function(){
+      function getSession(){
+        try{
+          var raw=localStorage.getItem('dayflow_session')||sessionStorage.getItem('dayflow_session');
+          if(!raw)return null;
+          var s=JSON.parse(raw);
+          if(s.expires&&Date.now()>s.expires){localStorage.removeItem('dayflow_session');sessionStorage.removeItem('dayflow_session');return null;}
+          return s;
+        }catch{return null;}
+      }
+      if(!getSession()){window.location.replace('login.html');}
+    })();
+  </script>
+</head>
+<body>
+
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+  </div>
+
+  <div class="app-wrapper">
+
+    <!-- ── HEADER ── -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo">
+          <span class="logo-icon">✦</span>
+          <span class="logo-text">DayFlow</span>
+        </div>
+        <div class="quote-strip" id="quoteStrip">Loading your daily spark…</div>
+      </div>
+      <div class="header-right">
+        <button class="btn-icon" id="themeToggle" title="Toggle theme">◑</button>
+        <button class="btn-icon" id="exportBtn" title="Export today">⬆</button>
+        <div class="user-pill" id="userPill">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <span class="user-name" id="userName">User</span>
+          <div class="user-dropdown" id="userDropdown">
+            <div class="ud-info">
+              <div class="ud-name" id="udName">—</div>
+              <div class="ud-email" id="udEmail">—</div>
+            </div>
+            <hr class="ud-sep"/>
+            <button class="ud-item" id="logoutBtn">◁ Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── DATE NAV ── -->
+    <section class="date-nav">
+      <button class="nav-btn" id="prevDay">‹</button>
+      <div class="date-center">
+        <div class="date-label" id="dateLabel"></div>
+        <div class="date-sub" id="dateSub"></div>
+      </div>
+      <button class="nav-btn" id="nextDay">›</button>
+      <button class="today-btn" id="todayBtn">Today</button>
+      <div class="view-toggle">
+        <button class="vtab active" id="dayViewBtn" title="Day View">◧ Day</button>
+        <button class="vtab" id="weekViewBtn" title="Week View">▦ Week</button>
+      </div>
+    </section>
+
+    <!-- ── STATS ROW ── -->
+    <section class="stats-row">
+      <div class="stat-card stat-tasks">
+        <div class="stat-ring" id="progressRing">
+          <svg viewBox="0 0 60 60">
+            <circle class="ring-bg" cx="30" cy="30" r="24"/>
+            <circle class="ring-fg" id="ringFg" cx="30" cy="30" r="24"
+                    stroke-dasharray="150.8" stroke-dashoffset="150.8"/>
+          </svg>
+          <span class="ring-pct" id="ringPct">0%</span>
+        </div>
+        <div class="stat-info">
+          <div class="stat-num"><span id="doneCount">0</span>/<span id="totalCount">0</span></div>
+          <div class="stat-label">Tasks Done</div>
+        </div>
+      </div>
+      <div class="stat-card stat-habits">
+        <div class="stat-icon sym-icon">◈</div>
+        <div class="stat-info">
+          <div class="stat-num" id="habitsDone">0</div>
+          <div class="stat-label">Habits Checked</div>
+        </div>
+      </div>
+      <div class="stat-card stat-mood">
+        <div class="stat-icon sym-icon" id="moodEmoji">◑</div>
+        <div class="stat-info">
+          <div class="stat-num" id="moodLabel">Set Mood</div>
+          <div class="stat-label">Today's Vibe</div>
+        </div>
+      </div>
+      <div class="stat-card stat-focus">
+        <div class="stat-icon sym-icon">◷</div>
+        <div class="stat-info">
+          <div class="stat-num" id="focusTimer">00:00</div>
+          <div class="stat-label">Focus Time</div>
+          <button class="mini-btn" id="focusToggle">Start</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── WEEK VIEW ── -->
+    <section class="week-view hidden" id="weekView">
+      <div class="week-nav">
+        <button class="nav-btn" id="prevWeek">‹</button>
+        <div class="week-nav-label" id="weekNavLabel"></div>
+        <button class="nav-btn" id="nextWeek">›</button>
+      </div>
+      <div class="week-cols" id="weekCols"></div>
+    </section>
+
+    <!-- ── DAY VIEW (main grid) ── -->
+    <div class="main-grid" id="dayView">
+
+      <!-- LEFT COLUMN -->
+      <div class="col col-left">
+
+        <!-- TASK LIST -->
+        <div class="card" id="taskCard">
+          <div class="card-header">
+            <h2 class="card-title"><span class="sym">◈</span> Tasks</h2>
+            <button class="add-btn" id="openTaskModal">+ Add Task</button>
+          </div>
+          <div class="filter-tabs">
+            <button class="ftab active" data-filter="all">All</button>
+            <button class="ftab" data-filter="work">Work</button>
+            <button class="ftab" data-filter="personal">Personal</button>
+            <button class="ftab" data-filter="health">Health</button>
+            <button class="ftab" data-filter="learning">Learning</button>
+          </div>
+          <div class="task-list" id="taskList">
+            <div class="empty-state" id="taskEmpty">
+              <span>No tasks yet — add one</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCHEDULE TIMELINE -->
+        <div class="card" id="scheduleCard">
+          <div class="card-header">
+            <h2 class="card-title"><span class="sym">◷</span> Schedule</h2>
+            <button class="add-btn" id="openEventModal">+ Add Event</button>
+          </div>
+          <div class="timeline" id="timeline">
+            <div class="empty-state" id="timelineEmpty">No events scheduled.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="col col-right">
+
+        <!-- MOOD TRACKER -->
+        <div class="card card-mood-picker">
+          <div class="card-header">
+            <h2 class="card-title"><span class="sym">◉</span> Mood Tracker</h2>
+          </div>
+          <div class="mood-grid" id="moodGrid">
+            <button class="mood-btn" data-mood="amazing" data-label="Amazing"><span class="mood-sym">✦</span><span>Amazing</span></button>
+            <button class="mood-btn" data-mood="happy"   data-label="Happy">  <span class="mood-sym">◕</span><span>Happy</span></button>
+            <button class="mood-btn" data-mood="neutral" data-label="Neutral"><span class="mood-sym">◑</span><span>Neutral</span></button>
+            <button class="mood-btn" data-mood="tired"   data-label="Tired">  <span class="mood-sym">◔</span><span>Tired</span></button>
+            <button class="mood-btn" data-mood="stressed" data-label="Stressed"><span class="mood-sym">◐</span><span>Stressed</span></button>
+            <button class="mood-btn" data-mood="sad"     data-label="Sad">    <span class="mood-sym">◒</span><span>Sad</span></button>
+          </div>
+        </div>
+
+        <!-- HABITS -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="sym">◆</span> Daily Habits</h2>
+            <button class="add-btn" id="addHabitBtn">+ Add</button>
+          </div>
+          <div class="habit-list" id="habitList"></div>
+        </div>
+
+        <!-- WATER TRACKER -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="sym">◎</span> Hydration</h2>
+            <span class="badge" id="waterBadge">0 / 8 glasses</span>
+          </div>
+          <div class="water-cups" id="waterCups"></div>
+        </div>
+
+        <!-- NOTES -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="sym">✎</span> Daily Notes</h2>
+          </div>
+          <textarea class="notes-area" id="notesArea" placeholder="Brain dump, ideas, reflections…"></textarea>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TASK MODAL ── -->
+  <div class="modal-overlay" id="taskModalOverlay">
+    <div class="modal" id="taskModal">
+      <div class="modal-header">
+        <h3 id="taskModalTitle">New Task</h3>
+        <button class="close-btn" id="closeTaskModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Task Title *</label>
+        <input type="text" id="taskTitle" placeholder="What needs to be done?" class="inp"/>
+        <div class="row-2">
+          <div>
+            <label>Category</label>
+            <select id="taskCat" class="inp">
+              <option value="work">▪ Work</option>
+              <option value="personal">⌂ Personal</option>
+              <option value="health">▷ Health</option>
+              <option value="learning">▣ Learning</option>
+              <option value="other">◎ Other</option>
+            </select>
+          </div>
+          <div>
+            <label>Priority</label>
+            <select id="taskPriority" class="inp">
+              <option value="high">▲ High</option>
+              <option value="medium">▶ Medium</option>
+              <option value="low">▽ Low</option>
+            </select>
+          </div>
+        </div>
+        <label>Due Time (optional)</label>
+        <input type="time" id="taskTime" class="inp"/>
+        <label>Notes</label>
+        <textarea id="taskNotes" class="inp" rows="3" placeholder="Any extra details…"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancelTaskModal">Cancel</button>
+        <button class="btn-primary" id="saveTask">Save Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── EVENT MODAL ── -->
+  <div class="modal-overlay" id="eventModalOverlay">
+    <div class="modal" id="eventModal">
+      <div class="modal-header">
+        <h3>New Event</h3>
+        <button class="close-btn" id="closeEventModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Event Title *</label>
+        <input type="text" id="eventTitle" placeholder="Meeting, workout, lunch…" class="inp"/>
+        <div class="row-2">
+          <div>
+            <label>Start Time *</label>
+            <input type="time" id="eventStart" class="inp"/>
+          </div>
+          <div>
+            <label>End Time</label>
+            <input type="time" id="eventEnd" class="inp"/>
+          </div>
+        </div>
+        <label>Colour Tag</label>
+        <div class="color-picker" id="colorPicker">
+          <button class="cp-btn active" data-color="#7C83E0" style="background:#7C83E0"></button>
+          <button class="cp-btn" data-color="#D97AA6" style="background:#D97AA6"></button>
+          <button class="cp-btn" data-color="#C9A84C" style="background:#C9A84C"></button>
+          <button class="cp-btn" data-color="#4DB896" style="background:#4DB896"></button>
+          <button class="cp-btn" data-color="#5B9BD5" style="background:#5B9BD5"></button>
+          <button class="cp-btn" data-color="#E05555" style="background:#E05555"></button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancelEventModal">Cancel</button>
+        <button class="btn-primary" id="saveEvent">Save Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── HABIT MODAL ── -->
+  <div class="modal-overlay" id="habitModalOverlay">
+    <div class="modal small-modal" id="habitModal">
+      <div class="modal-header">
+        <h3>New Habit</h3>
+        <button class="close-btn" id="closeHabitModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Habit Name *</label>
+        <input type="text" id="habitName" placeholder="e.g. Meditate, Read 20 pages…" class="inp"/>
+        <label>Symbol</label>
+        <input type="text" id="habitIcon" placeholder="◆" class="inp" maxlength="2"/>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancelHabitModal">Cancel</button>
+        <button class="btn-primary" id="saveHabit">Add Habit</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="session.js"></script>
+  <script src="cursor.js"></script>
+</body>
+</html>
